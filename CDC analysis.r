@@ -1,5 +1,5 @@
 library(pacman)
-p_load(tidyverse, janitor, skimr, ggthemes, ggpubr, rstatix, purrr)
+p_load(tidyverse, janitor, skimr, ggthemes, ggpubr, rstatix, purrr, scales)
 
 theme_set(theme_classic())
 
@@ -49,8 +49,9 @@ cdc %>%
     scale_color_manual(values = state_colors)+
     geom_boxplot(alpha = 0.75)+
     geom_jitter(width=0.2)+
-    facet_wrap(Category~MeasureId)+ 
-    stat_compare_means(method = "kruskal.test", label = "p.signif")
+    facet_wrap(Category~Short_Question_Text)+ 
+    stat_compare_means(method = "kruskal.test", label = "p.signif", 
+    label.y=70,label.x = 2.9)
 
 # Do the states differ from the overall mean for each measure? (Kruskal-Wallis test, non-parametric)
 cdc %>%
@@ -94,7 +95,8 @@ wide_cdc<-cdc%>%
 burden_measures <- c("DIABETES", "OBESITY", "BPHIGH")
 access_measures <- c("ACCESS2", "CHECKUP")
 
-expand.grid(burden = burden_measures, access = access_measures,
+#TABLE of rho (spearman's corr (>|0.75| is strong corr)) and p-vals
+correlation_summary<- expand.grid(burden = burden_measures, access = access_measures,
                             stringsAsFactors = FALSE) %>%
   rowwise() %>%
   mutate( test = list(cor.test(wide_cdc[[burden]], wide_cdc[[access]],
@@ -103,8 +105,8 @@ expand.grid(burden = burden_measures, access = access_measures,
     p_value = test$p.value) %>%
   select(-test) %>%
   ungroup()%>%
-  filter(p_value < 0.05)%>%
-  arrange(desc(abs(rho)))
+  arrange(desc(abs(rho)))%>%
+  mutate(pair_name = paste(burden, "vs", access))
 #only diabetes~checkup was not statistically significant
 
 #scatterplots and add either regression line or correlation
@@ -131,15 +133,86 @@ plot_data <- purrr::map2_dfr(
 )
 
 # Plot
-ggplot(plot_data, aes(x = x, y = y, color= StateAbbr)) +
-  geom_point(alpha = 0.7) +
-  geom_smooth(method = "lm", se = FALSE) +
-  scale_color_manual(values = state_colors)+
-  facet_wrap(~ pair_name, scales = "free")
+ # Labels
+label_data <- correlation_summary %>%
+  mutate(stars = case_when(p_value < 0.001 ~ "***",
+      p_value < 0.01  ~ "**",
+      p_value < 0.05  ~ "*",
+      TRUE ~ "ns"),
+    label = paste0("rho = ", round(rho, 2), ", ", stars))
+
+setdiff(unique(plot_data$pair_name), unique(label_data$pair_name))
+
+plot_data%>%
+mutate( StateAbbr = factor(StateAbbr,
+    levels = c( "CA",  "AZ", "NM", "TX", "OK")))%>%
+ggplot(aes(x = x, y = y, color= StateAbbr)) +
+  geom_point(alpha=0.7, size= 4) +
+  geom_smooth(data = plot_data, aes(x = x, y = y), method = "lm", se = FALSE,
+    color = "black", inherit.aes = FALSE) +
+  scale_color_manual(values = state_colors, name = "State")+
+  facet_wrap(~ pair_name, scales = "free") +
+  labs(x = "Burden (%)", y = "Access (%)")+
+  geom_text(data = label_data, aes(x = -Inf, y = Inf, label = label),
+  hjust = -0.1, vjust = 1.5, inherit.aes = FALSE, size = 3.5, fontface = "bold")
 
 ## 3. Are some states showing a stronger or weaker access/disease-burden pattern than others?
 
-#same as above, but break up by state
+## Build state-by-state correlation results
+state_pairs <- expand.grid(
+  StateAbbr = unique(wide_cdc$StateAbbr),
+  burden = burden_measures,
+  access = access_measures,
+  stringsAsFactors = FALSE
+)
+
+state_correlation_summary <- state_pairs %>%
+  mutate(
+    result = pmap(list(StateAbbr, burden, access), function(st, b, a) {
+      sub <- wide_cdc %>% filter(StateAbbr == st)
+      n_obs <- sum(!is.na(sub[[b]]) & !is.na(sub[[a]]))
+      if (n_obs < 4) {
+        return(tibble(rho = NA_real_, p_value = NA_real_, n = n_obs))
+      }
+      test <- cor.test(sub[[b]], sub[[a]], method = "spearman")
+      tibble(rho = test$estimate, p_value = test$p.value, n = n_obs)
+    })
+  ) %>%
+  unnest(result) %>%
+  mutate(pair_name = paste(burden, "vs", access))
+
+## Build matching labels
+state_label_data <- state_correlation_summary %>%
+  mutate(
+    stars = case_when(
+      is.na(p_value)  ~ "",
+      p_value < 0.001 ~ "***",
+      p_value < 0.01  ~ "**",
+      p_value < 0.05  ~ "*",
+      TRUE            ~ "ns"
+    ),
+    label = paste0("rho = ", round(rho, 2), ", ", stars)
+  )
+
+## Plot with labels added
+plot_data %>%
+  mutate(StateAbbr = factor(StateAbbr, levels = c("CA", "AZ", "NM", "TX", "OK"))) %>%
+  ggplot(aes(x = x, y = y, color = StateAbbr)) +
+  geom_point(alpha = 0.7, size = 4) +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_color_manual(values = state_colors, name = "State") +
+  facet_grid(StateAbbr ~ pair_name, scales = "free") +
+  labs(x = "Burden (%)", y = "Access (%)") +
+  geom_text(
+    data = state_label_data %>%
+      mutate(StateAbbr = factor(StateAbbr, levels = c("CA", "AZ", "NM", "TX", "OK"))),
+    aes(x = -Inf, y = Inf, label = label),
+    hjust = -0.1, vjust = 1.5, color = "black",
+    size = 3, fontface = "bold")+ theme(
+    panel.border = element_rect(color = "#403838", fill = NA, linewidth = 0.5),
+    panel.spacing = unit(0.6, "lines"),
+    strip.background = element_rect(fill = "#fffcfc", color = "black"),
+    strip.text = element_text(face = "bold", size = 8))
 
 ## 4. How does the chronic disease burden and prev care access differ b/t major metro counties and their state avgs?
 
@@ -202,9 +275,40 @@ cdc <- cdc %>%
     UrbanStatus = !is.na(metro),
     metro = replace_na(metro, "Rural"))
 
-#this is a table of city name/city value/state/state avg/difference; benchmarking
+# TABLE
+urban_status_summary<- cdc%>%
+ group_by(StateAbbr,UrbanStatus, Short_Question_Text)%>%
+ summarise(median = median(Data_Value, na.rm= TRUE))%>%
+   mutate(UrbanStatus = ifelse(UrbanStatus, "Urban", "Rural")) %>%
+  pivot_wider(names_from = c(UrbanStatus), values_from = median)%>%
+  mutate(diff = Urban - Rural)
 
-#a dumbbell plot showing the diff could be a cool addition
+#FIGURE
+urban_status_summary %>%
+  mutate(diff = Urban - Rural,
+  Short_Question_Text = factor( Short_Question_Text, 
+  levels = c("Diabetes","High Blood Pressure","Obesity","Annual Checkup","Health Insurance" ))) %>%
+  ggplot(aes(x = StateAbbr)) +
+  geom_segment(aes(xend = StateAbbr, y = Rural, yend = Urban), color = "grey60") +
+  geom_point(aes(y = Urban, color = StateAbbr, shape = "Urban"), size = 3) +
+  geom_point(aes(y = Rural, color = StateAbbr, shape = "Rural"), size = 3) +
+  geom_text(
+    aes(y = (Urban + Rural) / 2, label = paste0(round(abs(diff), 1), "%")),
+    size = 3, vjust = -0.6, fontface = "bold"
+  ) +
+  scale_color_manual(values = state_colors, guide = "none") +
+  scale_shape_manual(
+    name = "",
+    values = c("Urban" = 16, "Rural" = 1),
+    guide = guide_legend(override.aes = list(color = "black"))
+  )+
+  scale_y_continuous(labels = label_number(accuracy = 1))  +
+  facet_wrap(~ Short_Question_Text, scales = "free") +
+  coord_flip() +
+  labs(x = "", y = "Median prevalence (%)")
+
+
+
 
 ## 5. [Discussion section] Which counties shows the strongest case for targeted intervention, based on the combined disease-burden and access picture? 
 #(Address whether primary differences are state-based or urban-v-rural based)
