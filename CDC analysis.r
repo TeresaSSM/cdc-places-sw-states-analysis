@@ -15,6 +15,9 @@ skim(cdc)
 
 #defining state color palette
 state_colors <- c("CA" = "#f8dfa5",  "AZ" = "#deac23", "NM" = "#ec7c2b",   "TX" = "#c23022", "OK" = "#9b2c0a")
+#defining measure labels
+measure_labels <- c(DIABETES = "Diabetes", OBESITY = "Obesity", BPHIGH = "High Blood Pressure",
+  ACCESS2 = "Health Insurance", CHECKUP = "Annual Checkup")
 
 ## 1. Distribution of chronic disease burden look like across counties in SW states: 
 # What's typical, and how much variation is there?
@@ -32,7 +35,7 @@ cdc_summary<- cdc%>%
 view(cdc_summary)
 
 # Fig 1a (overall histogram)
-cdc%>%
+Fig1<-cdc%>%
 mutate( StateAbbr = factor(StateAbbr,
       levels = c("TX", "OK", "NM", "AZ", "CA")))%>%
 ggplot(aes(x=Data_Value, fill=StateAbbr, color= StateAbbr))+
@@ -43,7 +46,7 @@ ggplot(aes(x=Data_Value, fill=StateAbbr, color= StateAbbr))+
     facet_wrap(Category~MeasureId, scales = "free")
 
 # Fig 1b (boxplots for each metric; facet by state and measure)
-cdc %>%
+Fig2<-cdc %>%
     ggplot(aes(x=StateAbbr, y=Data_Value, fill=StateAbbr, color=StateAbbr))+
     scale_fill_manual(values = state_colors)+
     scale_color_manual(values = state_colors)+
@@ -53,34 +56,35 @@ cdc %>%
     stat_compare_means(method = "kruskal.test", label = "p.signif", 
     label.y=70,label.x = 2.9)
 
-# Do the states differ from the overall mean for each measure? (Kruskal-Wallis test, non-parametric)
-cdc %>%
+# TABLE Do the states differ from the overall mean for each measure? (Kruskal-Wallis test, non-parametric)
+Table1<-cdc %>%
   filter(!is.na(Data_Value)) %>%
-  group_by(MeasureId) %>%
+  group_by(Short_Question_Text) %>%
   summarise(p_value = kruskal.test(Data_Value ~ StateAbbr)$p.value, .groups = "drop")
 #they (above) are all significant
 
 #kruskal effect size
-cdc %>%
+Table2<-cdc %>%
   filter(!is.na(Data_Value)) %>%
-  group_by(MeasureId) %>%
+  group_by(Short_Question_Text) %>%
   kruskal_effsize(Data_Value ~ StateAbbr)
 #the effect size for Checkup  (ε² = 0.73) is the highest but 4/5 are large magnitude!
 #diabetes is the lowest, so avg age, pop genetics, etc, may explain diabetes variation more than state.
 
 #Dunn test: pairwise comparisions
 #large z-scores in conjunction with pval for significance
-cdc %>%
+Table3<-cdc %>%
   filter(!is.na(Data_Value)) %>%
-  group_by(MeasureId) %>%
+  group_by(Short_Question_Text) %>%
   dunn_test(Data_Value ~ StateAbbr) %>%
   filter(p.adj < 0.05, abs(statistic)>10)%>%
+  select(!c(.y.,p, p.adj.signif))%>%
   print(n=Inf)
 
 # TABLE of medians of the states - so we can see visually which ones are diff from avg
-cdc %>%
+Table4<-cdc %>%
   filter(!is.na(Data_Value)) %>%
-  group_by(MeasureId, StateAbbr) %>%
+  group_by(Short_Question_Text, StateAbbr) %>%
   summarise(median_value = median(Data_Value), .groups = "drop") %>%
   pivot_wider(names_from = StateAbbr, values_from = median_value)
 
@@ -143,7 +147,7 @@ label_data <- correlation_summary %>%
 
 setdiff(unique(plot_data$pair_name), unique(label_data$pair_name))
 
-plot_data%>%
+Fig3<-plot_data%>%
 mutate( StateAbbr = factor(StateAbbr,
     levels = c( "CA",  "AZ", "NM", "TX", "OK")))%>%
 ggplot(aes(x = x, y = y, color= StateAbbr)) +
@@ -195,7 +199,7 @@ state_label_data <- state_correlation_summary %>%
   )
 
 ## Plot with labels added
-plot_data %>%
+Fig4<-plot_data %>%
   mutate(StateAbbr = factor(StateAbbr, levels = c("CA", "AZ", "NM", "TX", "OK"))) %>%
   ggplot(aes(x = x, y = y, color = StateAbbr)) +
   geom_point(alpha = 0.7, size = 4) +
@@ -283,8 +287,10 @@ urban_status_summary<- cdc%>%
   pivot_wider(names_from = c(UrbanStatus), values_from = median)%>%
   mutate(diff = Urban - Rural)
 
+Table5<-urban_status_summary
+
 #FIGURE
-urban_status_summary %>%
+Fig5<-urban_status_summary %>%
   mutate(diff = Urban - Rural,
   Short_Question_Text = factor( Short_Question_Text, 
   levels = c("Diabetes","High Blood Pressure","Obesity","Annual Checkup","Health Insurance" ))) %>%
@@ -308,7 +314,8 @@ urban_status_summary %>%
   labs(x = "", y = "Median prevalence (%)")
 
 
+### Save objects
 
-
-## 5. [Discussion section] Which counties shows the strongest case for targeted intervention, based on the combined disease-burden and access picture? 
-#(Address whether primary differences are state-based or urban-v-rural based)
+saveRDS(list(Fig1 = Fig1, Fig2= Fig2, Fig3 = Fig3, Fig4 = Fig4, Fig5 = Fig5,
+    Table1=Table1, Table2 = Table2, Table3 = Table3, Table4 = Table4, Table5 = Table5),
+  "cdc_analysis_objects.rds")
