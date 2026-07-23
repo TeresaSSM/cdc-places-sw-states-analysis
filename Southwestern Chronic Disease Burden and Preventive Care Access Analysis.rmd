@@ -1,0 +1,75 @@
+---
+title: "Analysis of Healthcare Access vs Chronic Disease Burdon in the American Southwest"
+author: "Teresa McCarrell"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, echo = FALSE}
+#Taking a look at the figs
+library(pacman)
+p_load(tidyverse, janitor, skimr, ggthemes, ggpubr, rstatix, purrr, scales)
+theme_set(theme_classic())
+analysis_objects <- readRDS( "cdc_analysis_objects.rds")
+names(analysis_objects)
+
+```
+1. Introduction (~100-150 words)
+
+What this report examines: chronic disease burden and preventive care access across counties in 5 southwestern states
+ (CA, AZ, NM, OK, TX).
+Why these states: your target job markets / personal relevance (can reuse the honest "why this geography" framing you 
+used for IPEDS — just applied to job-market states instead of UC campuses).
+The questions the report answers (your finalized four):
+What does the distribution of chronic disease burden look like across these states?
+Is there a relationship between preventive care access and chronic disease burden?
+Does that relationship vary by state?
+How do major metro counties compare to their state averages?
+Use IR/health-analytics vocabulary where natural: benchmarking, prevalence, disparities.
+
+2. Data & Methods (~60-100 words, same target as before)
+
+Data source: CDC PLACES County Data, 2024 release, filtered to Age-adjusted prevalence (explain briefly why
+ age-adjusted — comparability across counties with different age structures).
+The 5 measures used and what they capture (briefly).
+Note the statistical approach: non-parametric methods (Kruskal-Wallis, Dunn's post-hoc, Spearman correlation) 
+chosen because prevalence data doesn't reliably meet normality assumptions.
+Note the urban/rural classification: your metro_lookup approach, and the caveat that unmatched counties default
+ to "Rural" as a simplification, not a rigorously validated designation.
+
+3. Results — organized by your four questions, each with narrative + figure(s):
+```{r, fig.width=8, fig.height=4,fig.cap="Figs", echo = FALSE}
+analysis_objects$Fig1
+analysis_objects$Fig2
+analysis_objects$Fig3
+analysis_objects$Fig4
+analysis_objects$Fig5
+analysis_objects$Table1
+analysis_objects$Table2
+analysis_objects$Table3
+analysis_objects$Table4
+analysis_objects$Table5
+```
+Q1 — Distribution: Fig 1a (histogram) + Fig 1b (boxplot), summary stats table, plus your Kruskal-Wallis + effect size
+ + Dunn's results. Lead with the finding: state is associated with large effects on 4 of 5 measures, Oklahoma standing
+  out in several.
+
+Q2 — Access vs. burden relationship overall: Fig 2 (hero scatter grid), correlation table. Lead with DIABETES × ACCESS2
+ as the strongest finding, and the DIABETES × CHECKUP null result / detection-artifact reasoning as a nuance worth
+  calling out.
+Q3 — Does it vary by state: Fig 3 (state-by-state faceted grid), noting the small-sample caveat for AZ/NM.
+Q4 — Metro vs. state averages: the benchmarking table + dumbbell plot, one clear finding about which metro/state gaps 
+stand out most.
+
+4. Conclusions & Recommendations (~100-200 words, matching your IPEDS target)
+
+2-3 concrete, actionable recommendations framed as "strengths to build on" / "areas to watch" — same structure that 
+worked before.
+Should point toward something a health department, health plan, or program evaluator would actually act on
+ (targeted outreach, resource allocation, monitoring priorities).
+ Which counties shows the strongest case for targeted intervention, based on the combined disease-burden
+  and access picture? 
+#(Address whether primary differences are state-based or urban-v-rural based)
