@@ -9,15 +9,17 @@ skim(cdc_full)
 
 cdc<-cdc_full%>%
  filter(Data_Value_Type == "Age-adjusted prevalence")%>%
- select(StateAbbr, LocationName, Category, Data_Value, MeasureId, Short_Question_Text) #the Data_Value_Unit for all these measures is percentage
-
+ select(StateAbbr, LocationName, Category, Data_Value, MeasureId, Short_Question_Text)%>% #the Data_Value_Unit for all these measures is percentage
+ mutate(Short_Question_Text = if_else(Short_Question_Text == "Health Insurance", "Uninsured", Short_Question_Text))
 skim(cdc)
+
+n_distinct(cdc$LocationName, cdc$StateAbbr)
 
 #defining state color palette
 state_colors <- c("CA" = "#f8dfa5",  "AZ" = "#deac23", "NM" = "#ec7c2b",   "TX" = "#c23022", "OK" = "#9b2c0a")
 #defining measure labels
 measure_labels <- c(DIABETES = "Diabetes", OBESITY = "Obesity", BPHIGH = "High Blood Pressure",
-  ACCESS2 = "Health Insurance", CHECKUP = "Annual Checkup")
+  ACCESS2 = "Uninsured", CHECKUP = "Annual Checkup")  
 
 ## 1. Distribution of chronic disease burden look like across counties in SW states: 
 # What's typical, and how much variation is there?
@@ -35,26 +37,34 @@ cdc_summary<- cdc%>%
 view(cdc_summary)
 
 # Fig 1a (overall histogram)
-Fig1<-cdc%>%
-mutate( StateAbbr = factor(StateAbbr,
-      levels = c("TX", "OK", "NM", "AZ", "CA")))%>%
-ggplot(aes(x=Data_Value, fill=StateAbbr, color= StateAbbr))+
-    geom_histogram(bins = 30, position = "identity", alpha =0.75)+
-    scale_fill_manual(values = state_colors)+
-    scale_color_manual(values = state_colors)+
-    labs(x="Age-adjusted prevalence (%)", y="Count of counties")+
-    facet_wrap(Category~MeasureId, scales = "free")
-
-# Fig 1b (boxplots for each metric; facet by state and measure)
+Fig1<- cdc %>%
+  mutate(
+    StateAbbr = factor(StateAbbr, levels = c("TX","OK", "NM", "CA", "AZ")),
+    Short_Question_Text = factor(Short_Question_Text,
+  levels = c("Diabetes", "High Blood Pressure", "Obesity", "Annual Checkup", "Uninsured"))) %>%
+  ggplot(aes(x = Data_Value, fill = StateAbbr, color = StateAbbr)) +
+  geom_histogram(aes(y = after_stat(count / ave(count, PANEL, group, FUN = sum))),
+                  bins = 30, position = "identity", alpha = 0.6) +
+  scale_fill_manual(values = state_colors, name = "State") +
+  scale_color_manual(values = state_colors, name = "State") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Age-adjusted prevalence (%)", y = "Percent of counties within state") +
+  facet_wrap(~ Short_Question_Text, scales = "free")
+  
+# Fig 2 (boxplots for each metric; facet by state and measure)
 Fig2<-cdc %>%
-    ggplot(aes(x=StateAbbr, y=Data_Value, fill=StateAbbr, color=StateAbbr))+
-    scale_fill_manual(values = state_colors)+
-    scale_color_manual(values = state_colors)+
-    geom_boxplot(alpha = 0.75)+
-    geom_jitter(width=0.2)+
-    facet_wrap(Category~Short_Question_Text)+ 
-    stat_compare_means(method = "kruskal.test", label = "p.signif", 
-    label.y=70,label.x = 2.9)
+  mutate(
+    StateAbbr = factor(StateAbbr, levels = c("TX","OK", "NM", "CA", "AZ")),
+    Short_Question_Text = factor(Short_Question_Text,
+  levels = c("Diabetes", "High Blood Pressure", "Obesity", "Annual Checkup", "Uninsured"))) %>%
+  ggplot(aes(x = StateAbbr, y = Data_Value, fill = StateAbbr, color = StateAbbr)) +
+  scale_fill_manual(values = state_colors, guide = "none") +
+  scale_color_manual(values = state_colors, guide = "none") +
+  geom_boxplot(alpha = 0.75) +
+  geom_jitter(width = 0.2) +
+  facet_wrap(~ Short_Question_Text, scales = "free") +
+  stat_compare_means(method = "kruskal.test", label = "p.signif", label.x.npc = "center", label.y.npc = "top") +
+  labs(x = NULL, y = "Percentage in each county")
 
 # TABLE Do the states differ from the overall mean for each measure? (Kruskal-Wallis test, non-parametric)
 Table1<-cdc %>%
@@ -110,7 +120,7 @@ correlation_summary<- expand.grid(burden = burden_measures, access = access_meas
   select(-test) %>%
   ungroup()%>%
   arrange(desc(abs(rho)))%>%
-  mutate(pair_name = paste(burden, "vs", access))
+  mutate(pair_name = paste(measure_labels[burden], "vs", measure_labels[access]))
 #only diabetes~checkup was not statistically significant
 
 #scatterplots and add either regression line or correlation
@@ -128,13 +138,10 @@ plot_data <- purrr::map2_dfr(
   pair_data$y_var,
   \(xvar, yvar) {
     tibble(
-      pair_name = paste(xvar, "vs", yvar),
+      pair_name = paste(measure_labels[xvar], "vs", measure_labels[yvar]),
       x = wide_cdc[[xvar]],
       y = wide_cdc[[yvar]],
-      StateAbbr = wide_cdc$StateAbbr
-    )
-  }
-)
+      StateAbbr = wide_cdc$StateAbbr) })
 
 # Plot
  # Labels
@@ -148,8 +155,7 @@ label_data <- correlation_summary %>%
 setdiff(unique(plot_data$pair_name), unique(label_data$pair_name))
 
 Fig3<-plot_data%>%
-mutate( StateAbbr = factor(StateAbbr,
-    levels = c( "CA",  "AZ", "NM", "TX", "OK")))%>%
+mutate(StateAbbr = factor(StateAbbr, levels = c("TX","OK", "NM", "CA", "AZ")))%>%
 ggplot(aes(x = x, y = y, color= StateAbbr)) +
   geom_point(alpha=0.7, size= 4) +
   geom_smooth(data = plot_data, aes(x = x, y = y), method = "lm", se = FALSE,
@@ -167,8 +173,7 @@ state_pairs <- expand.grid(
   StateAbbr = unique(wide_cdc$StateAbbr),
   burden = burden_measures,
   access = access_measures,
-  stringsAsFactors = FALSE
-)
+  stringsAsFactors = FALSE)
 
 state_correlation_summary <- state_pairs %>%
   mutate(
@@ -183,7 +188,7 @@ state_correlation_summary <- state_pairs %>%
     })
   ) %>%
   unnest(result) %>%
-  mutate(pair_name = paste(burden, "vs", access))
+  mutate(pair_name = paste(measure_labels[burden], "vs", measure_labels[access]))
 
 ## Build matching labels
 state_label_data <- state_correlation_summary %>%
@@ -200,23 +205,23 @@ state_label_data <- state_correlation_summary %>%
 
 ## Plot with labels added
 Fig4<-plot_data %>%
-  mutate(StateAbbr = factor(StateAbbr, levels = c("CA", "AZ", "NM", "TX", "OK"))) %>%
+  mutate(StateAbbr = factor(StateAbbr, levels = c("TX","OK", "NM", "CA", "AZ"))) %>%
   ggplot(aes(x = x, y = y, color = StateAbbr)) +
   geom_point(alpha = 0.7, size = 4) +
   geom_smooth(method = "lm", se = FALSE) +
   scale_color_manual(values = state_colors, name = "State") +
   facet_grid(StateAbbr ~ pair_name, scales = "free") +
   labs(x = "Burden (%)", y = "Access (%)") +
-  geom_text(
-    data = state_label_data %>%
-      mutate(StateAbbr = factor(StateAbbr, levels = c("CA", "AZ", "NM", "TX", "OK"))),
+  geom_text(data = state_label_data %>%
+      mutate(StateAbbr = factor(StateAbbr, levels = c("TX","OK", "NM", "CA", "AZ"))),
     aes(x = -Inf, y = Inf, label = label),
     hjust = -0.1, vjust = 1.5, color = "black",
-    size = 3, fontface = "bold")+ theme(
-    panel.border = element_rect(color = "#403838", fill = NA, linewidth = 0.5),
+    size = 3, fontface = "bold")+ 
+    theme(panel.border = element_rect(color = "#403838", fill = NA, linewidth = 0.5),
     panel.spacing = unit(0.6, "lines"),
     strip.background = element_rect(fill = "#fffcfc", color = "black"),
-    strip.text = element_text(face = "bold", size = 8))
+    strip.text = element_text(face = "bold", size = 8),
+    legend.position = "none")
 
 ## 4. How does the chronic disease burden and prev care access differ b/t major metro counties and their state avgs?
 
@@ -275,16 +280,21 @@ metro_lookup <- tribble( ~LocationName,       ~metro,
 
 cdc <- cdc %>%
   left_join(metro_lookup, by = "LocationName") %>%
-  mutate(
-    UrbanStatus = !is.na(metro),
-    metro = replace_na(metro, "Rural"))
+  mutate(metro = replace_na(metro, "Rural"))%>%
+  mutate(UrbanStatus = if_else(metro == "Rural", "Rural", "Urban"))
+
+#N counties
+n_counties<- cdc%>%
+mutate(UrbanStatus = if_else(metro == "Rural", "Rural", "Urban"))%>%
+ group_by(StateAbbr, UrbanStatus)%>%
+ filter(MeasureId == "CHECKUP")%>%
+ summarise(Count = n(), .groups = "drop")
 
 # TABLE
-urban_status_summary<- cdc%>%
- group_by(StateAbbr,UrbanStatus, Short_Question_Text)%>%
- summarise(median = median(Data_Value, na.rm= TRUE))%>%
-   mutate(UrbanStatus = ifelse(UrbanStatus, "Urban", "Rural")) %>%
-  pivot_wider(names_from = c(UrbanStatus), values_from = median)%>%
+urban_status_summary <- cdc %>%
+  group_by(StateAbbr, UrbanStatus, Short_Question_Text) %>%
+  summarise(median = median(Data_Value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = UrbanStatus, values_from = median) %>%
   mutate(diff = Urban - Rural)
 
 Table5<-urban_status_summary
@@ -292,8 +302,8 @@ Table5<-urban_status_summary
 #FIGURE
 Fig5<-urban_status_summary %>%
   mutate(diff = Urban - Rural,
-  Short_Question_Text = factor( Short_Question_Text, 
-  levels = c("Diabetes","High Blood Pressure","Obesity","Annual Checkup","Health Insurance" ))) %>%
+Short_Question_Text = factor(Short_Question_Text,
+  levels = c("Diabetes", "High Blood Pressure", "Obesity", "Annual Checkup", "Uninsured"))) %>%
   ggplot(aes(x = StateAbbr)) +
   geom_segment(aes(xend = StateAbbr, y = Rural, yend = Urban), color = "grey60") +
   geom_point(aes(y = Urban, color = StateAbbr, shape = "Urban"), size = 3) +
@@ -313,9 +323,29 @@ Fig5<-urban_status_summary %>%
   coord_flip() +
   labs(x = "", y = "Median prevalence (%)")
 
+#Fig 6: boxplots of urban status
+Fig6<- cdc %>%
+  mutate(
+    StateAbbr = factor(StateAbbr, levels = c("TX","OK", "NM", "CA", "AZ")),
+Short_Question_Text = factor(Short_Question_Text,
+  levels = c("Diabetes", "High Blood Pressure", "Obesity", "Annual Checkup", "Uninsured"))
+  ) %>%
+  ggplot(aes(x = StateAbbr, y = Data_Value, fill = StateAbbr, color = StateAbbr, shape= UrbanStatus)) +
+  scale_fill_manual(values = state_colors, guide = "none") +
+  scale_color_manual(values = state_colors, guide = "none") +
+  scale_shape_manual(values = c("Urban" = 16, "Rural" = 1), name = "")+
+  geom_boxplot(alpha = 0.5) +
+  geom_jitter(width=0.15) +
+  facet_wrap(~ Short_Question_Text, scales = "free") +
+  stat_compare_means(method = "kruskal.test", label = "p.signif", label.x.npc = "center", label.y.npc = "top") +
+  labs(x = NULL, y = "Percentage in each county")
 
+cdc %>%
+  filter(is.na(Data_Value) | is.na(UrbanStatus)) %>%
+  select(StateAbbr, LocationName, Short_Question_Text, Data_Value, UrbanStatus)
 ### Save objects
 
-saveRDS(list(Fig1 = Fig1, Fig2= Fig2, Fig3 = Fig3, Fig4 = Fig4, Fig5 = Fig5,
-    Table1=Table1, Table2 = Table2, Table3 = Table3, Table4 = Table4, Table5 = Table5),
+saveRDS(list(Fig1 = Fig1, Fig2= Fig2, Fig3 = Fig3, Fig4 = Fig4, Fig5 = Fig5, Fig6 = Fig6,
+    Table1=Table1, Table2 = Table2, Table3 = Table3, Table4 = Table4, Table5 = Table5,
+    n_counties =n_counties, state_correlation_summary = state_correlation_summary),
   "cdc_analysis_objects.rds")

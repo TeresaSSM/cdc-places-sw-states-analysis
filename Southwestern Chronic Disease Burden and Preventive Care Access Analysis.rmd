@@ -3,73 +3,253 @@ title: "Analysis of Healthcare Access vs Chronic Disease Burdon in the American 
 author: "Teresa McCarrell"
 date: "`r Sys.Date()`"
 output: 
-  html_document:
-    toc: true
-    toc_float: true
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, echo = FALSE}
 #Taking a look at the figs
 library(pacman)
-p_load(tidyverse, janitor, skimr, ggthemes, ggpubr, rstatix, purrr, scales)
+p_load(tidyverse, gt, rmarkdown, knitr)
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE)
+
 theme_set(theme_classic())
 analysis_objects <- readRDS( "cdc_analysis_objects.rds")
-names(analysis_objects)
-
 ```
-1. Introduction (~100-150 words)
+### Introduction 
 
-What this report examines: chronic disease burden and preventive care access across counties in 5 southwestern states
- (CA, AZ, NM, OK, TX).
-Why these states: your target job markets / personal relevance (can reuse the honest "why this geography" framing you 
-used for IPEDS — just applied to job-market states instead of UC campuses).
-The questions the report answers (your finalized four):
-What does the distribution of chronic disease burden look like across these states?
-Is there a relationship between preventive care access and chronic disease burden?
-Does that relationship vary by state?
-How do major metro counties compare to their state averages?
-Use IR/health-analytics vocabulary where natural: benchmarking, prevalence, disparities.
+Chronic disease burden (diabetes, high blood pressure, and obesity) and preventive care access 
+(health insurance coverage and routine checkups) were examined across counties in five American 
+southwestern states (AZ, CA, NM, OK, TX). Data were drawn from the CDC PLACES County Data release, 
+which provides model-based prevalence estimates for chronic disease and preventive care measures at
+ the county level nationwide, based on 2023 Behavioral Risk Factor Surveillance System (BRFSS) survey data.
 
-2. Data & Methods (~60-100 words, same target as before)
+This report answers four questions: (1) What does the distribution of chronic disease burden look
+ like across counties in these states? (2) Is there a relationship between preventive care access
+  and chronic disease burden? (3) How does this access-burden relationship vary between states? 
+  (4) How do counties associated with major metropolitan areas compare to their state averages, 
+  disentangling state-level differences from urban-versus-rural disparities?
 
-Data source: CDC PLACES County Data, 2024 release, filtered to Age-adjusted prevalence (explain briefly why
- age-adjusted — comparability across counties with different age structures).
-The 5 measures used and what they capture (briefly).
-Note the statistical approach: non-parametric methods (Kruskal-Wallis, Dunn's post-hoc, Spearman correlation) 
-chosen because prevalence data doesn't reliably meet normality assumptions.
-Note the urban/rural classification: your metro_lookup approach, and the caveat that unmatched counties default
- to "Rural" as a simplification, not a rigorously validated designation.
+CDC advises that PLACES estimates, as model-based small-area predictions, are not intended for
+ evaluating the effects of specific programs or policy interventions. Accordingly, this report
+  uses PLACES data as a tool for identifying where disparities in health outcomes and access 
+  exist, rather than for evaluating the impact of any past or current intervention.
 
-3. Results — organized by your four questions, each with narrative + figure(s):
-```{r, fig.width=8, fig.height=4,fig.cap="Figs", echo = FALSE}
-analysis_objects$Fig1
+### Data & Methods 
+
+Data was sourced directly from the CDC PLACES County Data portal, filtered prior to downloading
+ to 437 counties from five
+ southwestern states (AZ, CA, NM, OK, TX) and to five measures spanning chronic disease burden 
+ and preventive care access. One rural Texas county (Loving County, population ~60) was excluded from all measures
+  due to NA values for all measures, as a result of insufficient survey sample size. 
+
+All records reflect age-adjusted prevalence, allowing valid comparison
+  across counties with differing age structures. 
+   Because prevalence estimates were not normally distributed, non-parametric methods were used 
+   throughout: Kruskal-Wallis tests with Dunn's post-hoc pairwise comparisons to assess state-level
+    differences, and Spearman's rank correlation to assess the relationship between access and burden measures.
+
+Counties were manually classified as urban or rural based on inclusion in a state's principal
+ metropolitan area(s); ambiguous cases were resolved by cross-referencing county-to-metro assignments
+  for specific regions (e.g., Dallas-Fort Worth). This classification is coarser than a formal designation 
+  (e.g., USDA Rural-Urban Continuum Codes) and should be interpreted as a practical approximation rather
+   than an official standard. Urban county counts are notably small in Arizona, New Mexico, and Oklahoma
+    (two urban counties each), and comparisons involving these states' urban categories should be read 
+    with sample size in mind.
+
+```{r, fig.width=8, fig.height=4,fig.cap="Data Sample Summary", echo = FALSE}
+analysis_objects$n_counties%>%
+gt()%>%
+cols_label(StateAbbr = "State",
+    UrbanStatus = "Urban/Rural",
+    Count = "County Count")
+```
+
+### Results 
+
+#### Q1: Distribution of chronic disease burden across states
+
+State was significantly associated with all five measures examined (Table 1), though the strength of the
+ association varied considerably. Effect sizes ranged from moderate for diabetes (ε² = 0.14) to large 
+ for the remaining four measures, with annual checkup rate showing the strongest state-level association
+  (ε² = 0.73), followed by high blood pressure (ε² = 0.54), health insurance (ε² = 0.49), and obesity 
+  (ε² = 0.44) (Table 2). Diabetes's comparatively weak association with state suggests that other factors,
+   such as age distribution or genetic predisposition of the local demographics, may play a larger role
+   in diabetes prevalence than in the other measures studied.
+
+California and Oklahoma emerged as the most consistently divergent pair of states: of the seven state-pairings
+ showing the largest effect sizes (|z| > 10), three involved Oklahoma and California directly, spanning 
+ annual checkups, high blood pressure, and obesity (Table 3). Oklahoma recorded the highest statewide 
+ median prevalence of high blood pressure (37.4%) and obesity (40.4%) among the five states, while also
+  recording the highest annual checkup rate (76.2%) — a pattern addressed further in the discussion of 
+  access-burden relationships below. California, by contrast, recorded the lowest median prevalence across
+   nearly every measure, including diabetes (10.1%), high blood pressure (29.4%), and obesity (30.4%) (Table 4).
+```{r, fig.width=8, fig.height=4,fig.cap="Figure 1", echo = FALSE}
 analysis_objects$Fig2
-analysis_objects$Fig3
-analysis_objects$Fig4
-analysis_objects$Fig5
-analysis_objects$Table1
-analysis_objects$Table2
-analysis_objects$Table3
-analysis_objects$Table4
-analysis_objects$Table5
 ```
-Q1 — Distribution: Fig 1a (histogram) + Fig 1b (boxplot), summary stats table, plus your Kruskal-Wallis + effect size
- + Dunn's results. Lead with the finding: state is associated with large effects on 4 of 5 measures, Oklahoma standing
-  out in several.
+```{r, fig.width=8, fig.height=4,fig.cap="Figure 2", echo = FALSE}
+analysis_objects$Fig2
+```
 
-Q2 — Access vs. burden relationship overall: Fig 2 (hero scatter grid), correlation table. Lead with DIABETES × ACCESS2
- as the strongest finding, and the DIABETES × CHECKUP null result / detection-artifact reasoning as a nuance worth
-  calling out.
-Q3 — Does it vary by state: Fig 3 (state-by-state faceted grid), noting the small-sample caveat for AZ/NM.
-Q4 — Metro vs. state averages: the benchmarking table + dumbbell plot, one clear finding about which metro/state gaps 
-stand out most.
+```{r, fig.cap = "P-values and magnitude for state-by-state pairings", echo = FALSE}
+analysis_objects$Table3 %>%
+  gt() %>%
+  tab_header(title = "Significant Pairwise State Comparisons") %>%
+  tab_source_note(source_note = md("Table 1. P-values and Z-statistics are shown for state-by-state pairwise comparisons.
+       Only comparisons with an adjusted *p*-value < 0.05 and an absolute Z-statistic 
+       greater than 10 are displayed."))%>%
+  cols_label(Short_Question_Text = "Measure", group1 = "State 1", group2 = "State 2",
+    statistic = "Z Statistic", p.adj = "Adjusted P-Value") %>%
+  cols_hide(columns = c(n1, n2)) %>%
+  fmt_number(columns = statistic, decimals = 2) %>%
+  fmt_scientific(columns = p.adj, decimals = 2)%>%
+  tab_style(style = list(cell_fill(color = "goldenrod3"),
+      cell_text(weight = "bold", color = "white")),
+      locations = cells_column_labels(everything())) 
+```
+```{r, fig.cap = "Statewide median values for each measure - measures are rows and cols are states.", echo = FALSE}
 
-4. Conclusions & Recommendations (~100-200 words, matching your IPEDS target)
+analysis_objects$Table4 %>%
+  gt() %>%
+  cols_label(Short_Question_Text = "Measure") %>%
+  fmt(
+    columns = c(AZ, CA, NM, OK, TX),
+    fns = function(x) paste0(sprintf("%.1f", x), "%")) %>%
+  tab_header(
+    title = "Median County Prevalence by State") %>%
+  tab_style(style = list(cell_fill(color = "goldenrod3"),
+      cell_text(weight = "bold", color = "white")),
+      locations = cells_column_labels(everything())) %>%
+  cols_align(align = "center",
+    columns = c(AZ, CA, NM, OK, TX)) %>%
+  tab_source_note(source_note = md("Table 2. Values represent the median county-level
+   age-adjusted prevalence for each measure."))
+```
 
-2-3 concrete, actionable recommendations framed as "strengths to build on" / "areas to watch" — same structure that 
-worked before.
-Should point toward something a health department, health plan, or program evaluator would actually act on
- (targeted outreach, resource allocation, monitoring priorities).
- Which counties shows the strongest case for targeted intervention, based on the combined disease-burden
-  and access picture? 
-#(Address whether primary differences are state-based or urban-v-rural based)
+#### Q2: Relationship between access and burden across the American Southwest
+
+Preventive care access showed a clear but uneven relationship with chronic disease burden. 
+Lack of health insurance (ACCESS2) was positively correlated with all three burden measures, 
+with diabetes showing the strongest relationship observed in the entire analysis (ρ = 0.75, p < .001).
+Counties with higher uninsured rates consistently showed higher diabetes prevalence. Obesity
+  (ρ = 0.40, p < .001) and high blood pressure (ρ = 0.25, p < .001) showed weaker, 
+  though still statistically significant, positive relationships with uninsured rates.
+
+Checkup rate told a more complicated story. High blood pressure (ρ = 0.53, p < .001) and obesity (ρ = 0.39, p < .001) were both positively correlated with checkup rates — counties with more residents visiting a doctor annually showed higher, not lower, prevalence of these conditions. Diabetes showed no significant relationship with checkup rate at all (ρ = −0.05, p = .33). Because these measures rely on self-reported, diagnosed conditions rather than direct clinical measurement, this pattern likely reflects a detection effect: more frequent checkups increase the likelihood that an existing condition is identified and recorded, rather than checkups themselves driving disease prevalence upward. This distinction matters for interpretation — it suggests uninsured rate is a more direct proxy for care access in this dataset, while checkup rate is better understood as a proxy for diagnostic detection.
+```{r, fig.width=8, fig.height=4,fig.cap="Figure 3", echo = FALSE}
+analysis_objects$Fig3
+```
+
+#### Q3: Does the access-burden relationship vary between states?
+
+The diabetes-uninsured relationship held across every state, though its strength varied meaningfully:
+ from ρ = 0.63 in Oklahoma to ρ = 0.89 in Texas, with California (ρ = 0.88), Arizona (ρ = 0.70),
+  and New Mexico (ρ = 0.67) falling between. This consistency — a significant, positive relationship
+   in all five states — makes it the most reliable finding in the analysis. The obesity-uninsured
+    relationship was also significant in every state, but with more variability in strength,
+     ranging from ρ = 0.29 in Oklahoma to ρ = 0.72 in Texas. The high blood pressure-uninsured
+      relationship was directionally consistent across all five states but did not reach significance
+       in Arizona (ρ = 0.50, p = .06); potentially a reflection of Arizona's small county count (n = 15)
+        rather than a true absence of relationship, given that the direction and magnitude were consistent
+        with those of the other sampled states.
+
+The checkup-based relationships were far less consistent by state.
+ Texas and California were the only states where checkup rate showed significant relationships with
+  burden measures — and in both states, all three were negative (better care-detection proxy,
+   lower detected burden), consistent with the overall pattern. In Arizona, New Mexico, and Oklahoma,
+    no checkup-burden relationship reached significance for any of the three conditions. This split
+     suggests the checkup-detection relationship identified in the overall analysis may be driven
+      primarily by Texas and California's larger sample sizes.
+
+```{r, fig.width=8, fig.height=4,fig.cap="Figure 4", echo = FALSE}
+analysis_objects$Fig4
+```
+```{r, fig.width=8, fig.height=4, echo = FALSE}
+analysis_objects$state_correlation_summary%>%
+select(StateAbbr,pair_name,rho,p_value)%>%
+filter(p_value < 0.05, abs(rho) >= 0.40)%>%
+arrange(StateAbbr, desc(abs(rho)))%>%
+group_by(StateAbbr)%>%
+gt()%>%
+  cols_label(StateAbbr = "State", pair_name = "Measure Pair",
+    rho = "Spearman's ρ", p_value = "P-Value") %>%
+  fmt_number(columns = rho,
+    decimals = 2) %>%
+  fmt(columns = p_value,
+    fns = function(x) ifelse(x < 0.001, "<0.001", sprintf("%.3f", x))) %>%
+  tab_header(title = "Strong Within-State Correlations") %>%
+  tab_source_note(source_note = md( "Table 3. Only statistically significant correlations (*p* < 0.05) 
+      with an absolute Spearman correlation of at least 0.40 are shown."))%>%
+  tab_style(style = list(cell_fill(color = "goldenrod3"),
+      cell_text(weight = "bold", color = "white")),
+      locations = cells_column_labels(everything())) 
+```
+
+#### Q4: Metro vs. state averages
+Rural counties showed higher uninsured rates than their state's urban counties in four of five states:
+California (9.7% rural vs. 8.8% urban), Arizona (14.6% vs. 13.1%), New Mexico (17.5% vs. 14.2%),
+ and most notably Texas (19.0% vs. 14.5%, a 4.6 percentage-point gap, the largest urban-rural
+  insurance gap observed). Oklahoma was the exception, with rural and urban insurance rates nearly
+   identical (12.1% vs. 12.2%).
+
+This urban-rural insurance gap generally tracked with the disease burden gap in the same direction:
+ rural counties also showed higher obesity, diabetes, and high blood pressure prevalence than urban
+  counties in nearly every state, with New Mexico showing the widest rural-urban obesity gap observed
+   anywhere in the dataset (36.5% rural vs. 29.6% urban, a 6.95 percentage-point difference). Oklahoma
+    again stood apart, showing comparatively small urban-rural gaps across most measures despite having
+     the highest statewide burden overall — indicating Oklahoma's chronic disease burden is elevated broadly
+      across both urban and rural counties, rather than concentrated in one or the other.
+
+Combined with the Q3 findings, this points to New Mexico and Texas as the states where rural-urban disparities
+ in access and burden are most pronounced, while Oklahoma's elevated burden appears to be a statewide pattern
+  not explained by the urban-rural divide.
+
+**Note: as flagged in Methods, urban county counts for Arizona, New Mexico, and Oklahoma are small (n = 2 each),
+ so these states' urban-category comparisons should be treated as indicative rather than statistically robust.**
+
+```{r, fig.width=8, fig.height=4,fig.cap="Figure 5. median prevalence of measures in rural and urban communities of each state, as dumbbell plots showing a dumbbell for each of the 5 states; faceted by measure", echo= FALSE}
+analysis_objects$Fig5
+```
+```{r, fig.width=8, fig.height=4,fig.cap="Figure 6. Distribution of prevalence of measures in rural and urban counties in each state", echo= FALSE}
+analysis_objects$Fig6
+```
+
+### Conclusions & Recommendations
+
+This analysis points to insurance coverage, rather than checkup frequency, as the more reliable lever for
+ addressing chronic disease burden in the Southwest. The relationship between uninsured rate and diabetes
+  prevalence was not only the strongest observed in this analysis but also the most consistent, holding
+   significantly across all five states. This consistency makes expanding insurance access a stronger,
+    better-supported priority than checkup-based outreach specifically for diabetes, where the detection-driven
+     checkup relationship offered no significant signal at all.
+
+Texas and New Mexico warrant particular attention for rural outreach: both states show the widest gaps
+ between rural and urban counties in insurance coverage, and those same states show correspondingly wide
+  rural-urban gaps in chronic disease burden. Rural-targeted insurance enrollment efforts may offer the
+   clearest opportunity for impact in these two states specifically.
+
+Oklahoma presents a different pattern and requires a different response: its elevated chronic disease burden
+ appears broadly across both urban and rural counties rather than concentrated in one, suggesting statewide
+  programming may be more appropriate than a rural-urban targeted approach.
+
+As these estimates are modeled prevalence data rather than intervention outcomes, they are best used to
+ identify where to prioritize further investigation and resource planning, not as evidence of any specific
+  program's effect.
+
+5. Appendix
+```{r, fig.width=8, fig.height=4,fig.cap="Supplementary Table: Table of measure and p-value, associated with the p-vals of fig2", echo = FALSE}
+analysis_objects$Table1%>%
+  gt() 
+```
+```{r, fig.width=8, fig.height=4,fig.cap="Supplementary Table:Effect size and magnitude for fig 2", echo = FALSE}
+analysis_objects$Table2%>%
+  gt() 
+```
+```{r, fig.width=8, fig.height=4,fig.cap="Supplementary Table: Detailed values associated with fig 5", echo = FALSE}
+analysis_objects$Table5%>%
+  gt() 
+```
