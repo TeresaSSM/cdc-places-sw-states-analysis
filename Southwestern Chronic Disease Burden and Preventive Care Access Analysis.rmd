@@ -22,42 +22,42 @@ analysis_objects <- readRDS( "cdc_analysis_objects.rds")
 
 Chronic disease burden (diabetes, high blood pressure, and obesity) and preventive care access 
 (health insurance coverage and routine checkups) were examined across counties in five American 
-southwestern states (AZ, CA, NM, OK, TX). Data was drawn from the CDC PLACES County Data release, 
+southwestern states (Arizona, California, New Mexico, Oklahoma, Texas). Data was drawn from the public CDC PLACES County Data release, 
 which provides model-based prevalence estimates for chronic disease and preventive care measures at
  the county level nationwide, based on 2023 Behavioral Risk Factor Surveillance System (BRFSS) survey data.
 
 This report answers four questions: (1) What does the distribution of chronic disease burden look
  like across counties in these states? (2) Is there a relationship between preventive care access
   and chronic disease burden? (3) How does this access-burden relationship vary between states? 
-  (4) How do counties associated with major metropolitan areas compare to their state averages, 
-  disentangling state-level differences from urban-versus-rural disparities?
+  (4) How do counties associated with major metropolitan areas compare to their rural areas within the same state?
 
-CDC advises that PLACES estimates, as model-based small-area predictions, are not intended for
- evaluating the effects of specific programs or policy interventions. Accordingly, this report
+ Although this report
   uses PLACES data as a tool for identifying where disparities in health outcomes and access 
-  exist, rather than for evaluating the impact of any past or current intervention.
+  exist, the CDC advises that PLACES estimates, as model-based small-area predictions, are not intended to be the sole 
+  data source for
+ evaluating the effects of specific programs or determining the targets of policy interventions.
 
 ### Data & Methods 
 
-Data was sourced directly from the CDC PLACES County Data portal, filtered prior to downloading
- to 437 counties from five
- southwestern states (AZ, CA, NM, OK, TX) and to five measures spanning chronic disease burden 
- and preventive care access. One rural Texas county (Loving County, population ~60) was excluded
+Data was sourced directly from the CDC PLACES County Data portal, filtered prior to downloading. Filters were set
+ acquire data for five measures spanning chronic disease burden 
+ and preventive care access, and for 437 out of the 438 counties from the five
+ southwestern states (Arizona, California, New Mexico, Oklahoma, Texas). 
+ One rural Texas county (Loving County, population ~60) was excluded
   due to insufficient survey sample size.
 
 All records reflect age-adjusted prevalence, allowing valid comparison
   across counties with differing age structures. 
-   Because prevalence estimates were not normally distributed, non-parametric methods were used 
-   throughout: Kruskal-Wallis tests with Dunn's post-hoc pairwise comparisons to assess state-level
-    differences, and Spearman's rank correlation to assess the relationship between access and burden measures.
+Non-parametric methods were used due to non-normal data distributions;
+Kruskal-Wallis tests with Dunn's post-hoc pairwise comparisons to determine state-level
+    differences, and Spearman's rank correlation to evaluate the relationship between access and burden measures.
 
 Counties were manually classified as urban or rural based on inclusion in a state's principal
- metropolitan area(s); ambiguous cases were resolved by cross-referencing county-to-metro assignments
-  for specific regions (e.g., Dallas-Fort Worth). This classification is coarser than a formal designation 
-  (e.g., USDA Rural-Urban Continuum Codes) and should be interpreted as a practical approximation rather
-   than an official standard. Urban county counts are notably small in Arizona, New Mexico, and Oklahoma
-    (two urban counties each), and comparisons involving these states' urban categories should be read 
-    with sample size in mind (Table 1).
+ metropolitan area(s). Ambiguous cases were resolved by cross-referencing county-to-metro assignments (e.g., searching for
+ which counties are considered part of Dallas-Fort Worth). This classification is coarser than a formal designation 
+  (e.g., USDA Rural-Urban Continuum Codes). Urban county counts are notably small in Arizona, New Mexico, and Oklahoma
+    (two urban counties each), in comparision to urban county counts in Texas and California. Cmparisons involving 
+    urban vs rural counties should be read with sample size in mind (Table 1).
 
 ```{r, fig.width=8, fig.height=4, echo = FALSE}
 analysis_objects$n_counties%>%
@@ -72,23 +72,23 @@ cols_label(StateAbbr = "State",
 
 ### Results 
 
-#### Q1: Distribution of chronic disease burden across states
+#### #1: What is distribution of chronic disease burden across counties in these states?
 
-State was significantly associated with all five measures examined (Supplementary Table 1), though the strength of the
- association varied considerably. Effect sizes ranged from moderate for diabetes (ε² = 0.14) to large 
- for the remaining four measures, with annual checkup rate showing the strongest state-level association
+State was significantly associated with all five measures examined (Supplementary Table 1), though there was cosiderable
+variation in the strength of the association. Effect sizes ranged from moderate for diabetes (ε² = 0.14), to large 
+ for the remaining four measures. Annual checkup rate showed the strongest state-level association
   (ε² = 0.73), followed by high blood pressure (ε² = 0.54), uninsured rate (ε² = 0.49), and obesity 
-  (ε² = 0.44) (Supplementary Table 2). Diabetes's comparatively weak association with state suggests that other factors,
-   such as age distribution or genetic predisposition of the local demographics, may play a larger role
+  (ε² = 0.44) (Supplementary Table 2). The comparatively weak association of diabetes with state suggests that other factors,
+   such as the genetic predisposition of the local demographic, may play a larger role
    in diabetes prevalence than in the other measures studied.
 
-California and Oklahoma emerged as the most consistently divergent pair of states: of the seven state-pairings
- showing the largest effect sizes (|z| > 10), three involved Oklahoma and California directly, spanning 
+California and Oklahoma emerged as the most consistently divergent pair of states. Of the seven state-measure  pairings
+ showing the largest effect sizes (|z| > 10), three involved Oklahoma and California, spanning 
  annual checkups, high blood pressure, and obesity (Table 2). Oklahoma recorded the highest statewide 
  median prevalence of high blood pressure (37.4%) and obesity (40.4%) among the five states, while also
-  recording the highest annual checkup rate (76.2%) — a pattern addressed further in the discussion of 
-  access-burden relationships below. California, by contrast, recorded the lowest median prevalence across
-   nearly every measure, including diabetes (10.1%), high blood pressure (29.4%), and obesity (30.4%) (Table 3). Figures 1 and 2 illustrate these distributional and state-level patterns directly.
+  recording the highest annual checkup rate (76.2%). California, by contrast, recorded the lowest median prevalence across
+   nearly every measure, including diabetes (10.1%), high blood pressure (29.4%), and obesity (30.4%) (Table 3). 
+   Figures 1 and 2 illustrate the dataset-wide measure distributions and state-level patterns directly.
 
 ```{r, fig.width=8, fig.height=4,fig.cap="Figure 1. Distributions vary widely by state and measure; annual checkup rates show the clearest separation, with Oklahoma and Texas forming distinct, non-overlapping clusters.", echo = FALSE}
 analysis_objects$Fig1
@@ -137,44 +137,53 @@ analysis_objects$Table4 %>%
     data_row.padding = px(3))
 ```
 
-#### Q2: Relationship between access and burden across the American Southwest
+#### #2: Is there a relationship between preventive care access and chronic disease burden?
 
 Preventive care access showed a clear but uneven relationship with chronic disease burden. 
 Lack of health insurance was positively correlated with all three burden measures, 
-with diabetes showing the strongest relationship observed in the entire analysis (ρ = 0.75, p < .001).
+with diabetes showing the strongest relationship in the analysis (ρ = 0.75, p < .001).
 Counties with higher uninsured rates consistently showed higher diabetes prevalence. Obesity
-  (ρ = 0.40, p < .001) and high blood pressure (ρ = 0.25, p < .001) showed weaker, 
-  though still statistically significant, positive relationships with uninsured rates.
+  (ρ = 0.40, p < .001) and high blood pressure (ρ = 0.25, p < .001) also showed statistically significant, positive relationships with uninsured rates,
+  albiet with weaker correlation.
 
-Checkup rate told a more complicated story. High blood pressure (ρ = 0.53, p < .001) and obesity (ρ = 0.39, p < .001) were both positively correlated with checkup rates — counties with more residents visiting a doctor annually showed higher, not lower, prevalence of these conditions. Diabetes showed no significant relationship with checkup rate at all (ρ = −0.05, p = .33). Because these measures rely on self-reported, diagnosed conditions rather than direct clinical measurement, this pattern likely reflects a detection effect: more frequent checkups increase the likelihood that an existing condition is identified and recorded, rather than checkups themselves driving disease prevalence upward. This distinction matters for interpretation — it suggests uninsured rate is a more direct proxy for care access in this dataset, while checkup rate is better understood as a proxy for diagnostic detection. Figure 3 illustrates all six relationships directly.
+High blood pressure (ρ = 0.53, p < .001) and obesity (ρ = 0.39, p < .001) were both positively
+ correlated with checkup rates. Counties where more residents visited a doctor annually showed higher, not lower, prevalence of these conditions.
+  Diabetes showed no significant relationship with checkup rate (ρ = −0.05, p = .33). Because these measures rely on self-reported, diagnosed
+   conditions rather than direct clinical measurement, this pattern likely reflects a detection effect: more frequent checkups increase the likelihood
+    that an existing condition is identified and recorded. This suggests that uninsured
+     rate is a more direct proxy for care access in this dataset, while checkup rate is better understood
+      as a proxy for diagnostic detection. Figure 3 illustrates the six relationships directly.
 
 ```{r, fig.width=12, fig.height=4,fig.cap="Figure 3. Uninsured rate shows a consistent positive relationship with chronic disease burden, strongest for diabetes; checkup rate's relationship is inconsistent and, for diabetes, statistically null.", echo = FALSE}
 analysis_objects$Fig3+
   theme(strip.text = element_text(size = 8))
 ```
 
-#### Q3: Does the access-burden relationship vary between states?
+#### #3: How does this access-burden relationship vary between states?
 
-The diabetes-uninsured relationship held across every state, though its strength varied meaningfully:
+First, the relationship between uninsured rates and various burdens were evaluated within each state.
+The diabetes-uninsured relationship was significant and positively correlated across every state, though its strength varied: ranging
  from ρ = 0.63 in Oklahoma to ρ = 0.89 in Texas, with California (ρ = 0.88), Arizona (ρ = 0.70),
-  and New Mexico (ρ = 0.67) falling between. This consistency — a significant, positive relationship
-   in all five states — makes it the most reliable finding in the analysis (Figure 4, Table 4). The obesity-uninsured
-    relationship was also significant in every state, but with more variability in strength,
+  and New Mexico (ρ = 0.67) falling between (Figure 4, Table 4). The obesity-uninsured
+    relationship was also significant in every state, with variability in strength,
      ranging from ρ = 0.29 in Oklahoma to ρ = 0.72 in Texas. The high blood pressure-uninsured
-      relationship was directionally consistent across all five states but did not reach significance
-       in Arizona (ρ = 0.50, p = .06); potentially a reflection of Arizona's small county count (n = 15)
+      relationship was directionally consistent across all five states but did not reach statistical significance
+       in Arizona (ρ = 0.50, p = .06). This nay be due to Arizona's small county count (n = 15)
         rather than a true absence of relationship, given that the direction and magnitude were consistent
         with those of the other sampled states.
 
-The checkup-based relationships were far less consistent by state.
+Secondly, the relationship between checkup and burdens were evaluated. Checkup-burden relationships were less consistent 
+than uninsured-burden relationships.
  Texas and California were the only states where checkup rate showed significant relationships with
-  burden measures — and in both states, all three were negative (better care-detection proxy,
-   lower detected burden), consistent with the overall pattern. In Arizona, New Mexico, and Oklahoma,
-    no checkup-burden relationship reached significance for any of the three conditions. This split
-     suggests the checkup-detection relationship identified in the overall analysis may be driven
-      primarily by Texas and California's larger sample sizes.
+  burden measures; and all three relationships were negative, consistent with the overall pattern of better access to detection resulting in
+  a higher rate of detection of existing conditions. In Arizona, New Mexico, and Oklahoma,
+    no checkup-burden relationship reached significance for any of the three measured burdens. This split
+     suggests the checkup-detection relationship identified in the overall analysis may be influenced
+      by Texas and California's larger sample sizes.
 
-```{r, fig.width=14, fig.height=8,fig.cap="Figure 4. The diabetes-uninsured relationship is the only one that holds significantly across all five states; checkup-based relationships reach significance only in Texas and California.", echo = FALSE}
+These results are summarized in Figure 4 below.
+
+```{r, fig.width=15, fig.height=9,fig.cap="Figure 4. The diabetes-uninsured relationship is the only one that holds significantly across all five states; checkup-based relationships reach significance only in Texas and California.", echo = FALSE}
 analysis_objects$Fig4+
 coord_cartesian(clip = "off")
 ```
@@ -201,12 +210,12 @@ gt()%>%
     data_row.padding = px(3))
 ```
 
-#### Q4: Metro vs. state averages
+#### #4: How do counties associated with major metropolitan areas compare to their rural areas within the same state?
 Rural counties showed higher uninsured rates than their state's urban counties in four of five states:
 California (9.7% rural vs. 8.8% urban), Arizona (14.6% vs. 13.1%), New Mexico (17.5% vs. 14.2%),
  and most notably Texas (19.0% vs. 14.5%, a 4.6 percentage-point gap, the largest urban-rural
   insurance gap observed). Oklahoma was the exception, with rural and urban insurance rates nearly
-   identical (12.1% vs. 12.2%).
+   identical (12.1% vs. 12.2%) (Figure 5).
 ```{r, fig.width=9, fig.height=6,fig.cap="Figure 5. New Mexico shows the widest rural-urban gaps across nearly every measure, while Oklahoma's gaps stay narrow despite having the region's highest overall burden.", echo= FALSE}
 analysis_objects$Fig5
 ```
@@ -215,11 +224,11 @@ This urban-rural insurance gap generally tracked with the disease burden gap in 
   counties in nearly every state, with New Mexico showing the widest rural-urban obesity gap observed
    anywhere in the dataset (36.5% rural vs. 29.6% urban, a 6.95 percentage-point difference). Oklahoma
     again stood apart, showing comparatively small urban-rural gaps across most measures despite having
-     the highest statewide burden overall — indicating Oklahoma's chronic disease burden is elevated broadly
+     the highest statewide burden overall. This indicates that Oklahoma's chronic disease burden is elevated broadly
       across both urban and rural counties, rather than concentrated in one or the other.
 
-Combined with the Q3 findings, this points to New Mexico and Texas as the states where rural-urban disparities
- in access and burden are most pronounced, while Oklahoma's elevated burden appears to be a statewide pattern
+These results suggest that New Mexico and Texas are the states where rural-urban disparities
+ in access and burden are most pronounced, while Oklahoma's elevated burden is potentially a statewide pattern
   not explained by the urban-rural divide.
 
 However, not all identified gaps were found to be statistically significant. Figure 6 confirms which of these rural-urban gaps
@@ -238,28 +247,27 @@ coord_cartesian(clip = "off")
 
 This analysis points to insurance coverage, rather than checkup frequency, as the more reliable lever for
  addressing chronic disease burden in the Southwest. The relationship between uninsured rate and diabetes
-  prevalence was not only the strongest observed in this analysis but also the most consistent, holding
-   significantly across all five states. This consistency makes expanding insurance access a stronger,
-    better-supported priority than checkup-based outreach specifically for diabetes, where the detection-driven
+  prevalence was not only the strongest observed in this analysis but also the most consistent, being statistically
+   significant across all five states. This consistency makes expanding insurance access a stronger,
+    better-supported priority than checkup-based outreach, particularly for diabetes, where the detection-driven
      checkup relationship offered no significant signal at all.
 
-Texas and New Mexico warrant particular attention for rural outreach: both states show the widest gaps
- between rural and urban counties in insurance coverage, and those same states show correspondingly wide
+Texas and New Mexico warrant particular attention for rural outreach. These states show the widest gaps
+ between rural and urban counties in insurance coverage, and show correspondingly wide
   rural-urban gaps in chronic disease burden. Rural-targeted insurance enrollment efforts may offer the
-   clearest opportunity for impact in these two states specifically.
+   clearest opportunity for impact in Texas and New Mexico.
 
-Oklahoma presents a different pattern and requires a different response: its elevated chronic disease burden
+Oklahoma presents a different pattern and requires a different response. Its elevated chronic disease burden
  appears broadly across both urban and rural counties rather than concentrated in one, suggesting statewide
-  programming may be more appropriate than a rural-urban targeted approach.
+  programming may be more appropriate than a rural targeted approach.
 
-As these estimates are modeled prevalence data rather than intervention outcomes, they are best used to
- identify where to prioritize further investigation and resource planning, not as evidence of any specific
-  program's effect.
+As these suggested interventions are based on modeled prevalence data from surveys, they are best used to
+ identify where to prioritize further investigation and resource planning, not as the sole evidence baseline for future actions.
 
 
 ### Appendix
 
-The following tables provide additional statistical detail underlying the tests summarized in the Results section.
+The following tables provide additional statistical detail underlying the tests conducted in this analysis.
 
 ```{r,echo = FALSE}
 analysis_objects$Table1%>%
